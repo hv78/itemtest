@@ -49,7 +49,7 @@
                     </div>
                     <div id="imgDiv" class="form-group">
                         <label for="imageName">Image</label>
-                        <input type="file" name="imageName" id="imageName" class="form-control" required/>
+                        <input type="file" name="imageName" id="imageName" class="form-control"/>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -108,7 +108,7 @@
                 processData: false,
                 success: function (data) {
                     var responseData = JSON.parse(data);
-                    console.log(responseData.test);
+
                     if (responseData.errorsCount > 0 && (Object.values(responseData.errors) !== "")) {
                         console.log((Object.values(responseData.errors)));
                         $.each(responseData.errors, function (key, value) {
@@ -133,7 +133,7 @@
                 },
                 error: function (error) {
                     console.log(JSON.stringify(error));
-                    alert("There is a problem..");
+                    alert("There is a problem. Please try again.");
                 }
             })
         });
@@ -143,7 +143,7 @@
         var id = $(this).attr("id");
         $('#form_output').html('');
         $.ajax({
-            url: "{{route('articles.fetchdata')}}",
+            url: "{{route('articles.edit')}}",
             method: 'get',
             data: {id: id},
             dataType: 'json',
@@ -155,7 +155,7 @@
                 removeChildImg('imgDiv');
                 var img = document.createElement('img');
                 img.setAttribute('src', 'images/' + data.imageName);
-                img.setAttribute('alt', data.imageName);
+                img.setAttribute('alt', '' + data.imageName);
                 img.setAttribute('height', '100px');
                 img.setAttribute('width', '100px');
                 imgDiv.appendChild(img);
@@ -164,8 +164,39 @@
                 $('#addDialog').modal('toggle');
                 $('#action').val('Edit');
                 $('#button_action').val('update');
+            },
+            error: function (e) {
+                alert("There is a problem. Please try again.");
             }
         })
+    });
+
+    $(document).on('click', '.delete', function(){
+        var id = $(this).attr('id');
+        if(confirm("Are you sure you want to delete this data?"))
+        {
+            $.ajax({
+                url:"{{route('articles.delete')}}",
+                method:"get",
+                data:{id:id},
+                success:function(data)
+                {    var responseData = JSON.parse(data);
+
+                    $('#form_output').html(responseData);
+                    setTimeout(function () {
+                        $('#form_output').html('');
+                    }, 5000);
+                    $('#articles').DataTable().ajax.reload();
+                },
+                error: function (e) {
+                    alert("There is a problem. Please try again.");
+                }
+            })
+        }
+        else
+        {
+            return false;
+        }
     });
 
     function removeChildSpan(parentID) {

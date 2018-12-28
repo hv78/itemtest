@@ -15,6 +15,8 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('index', 'ArticlesController@index');
+//TODO: to do them diff way;
+Route::get('/index', 'ArticlesController@index');
 Route::post('/store', 'ArticlesController@store')->name('articles.store');
-Route::get('/fetchdata', 'ArticlesController@fetchdata')->name('articles.fetchdata');
+Route::get('/edit', 'ArticlesController@edit')->name('articles.edit');
+Route::get('/delete', 'ArticlesController@delete')->name('articles.delete');

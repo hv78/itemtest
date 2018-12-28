@@ -100,4 +100,7 @@ fabric.properties
 # Sonarlint plugin
 .idea/sonarlint
 
+# Others
+public/images/*.*
+
 # End of https://www.gitignore.io/api/laravel,phpstorm

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Article;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -10,22 +9,26 @@ use Yajra\DataTables\Facades\DataTables;
 
 class ArticlesController extends Controller
 {
-    private function rules($id)
+    private function rules($id, $buttonAction)
     {
-        return [
-            'name' => 'required|max:50|unique:article,name,' . $id,
-            'description' => 'required|max:500',
-            'imageName' => 'required|image|mimes:jpeg,png,jpg,gif,svg,bmp|max:2048'
-        ];
-    }
+        $rules = [];
+        //TODO: ugly but it works ;)
+        if ($buttonAction == "insert") {
+            $rules = [
+                'name' => 'required|max:50|unique:article,name,' . $id,
+                'description' => 'required|max:500',
+                'imageName' => 'required|image|mimes:jpeg,png,jpg,gif,svg,bmp|max:2048'
+            ];
+        }
 
-    private function rule()
-    {
-        return [
-            'name' => 'required|max:50|unique:article,name,',
-            'description' => 'required|max:500',
-            'imageName' => 'required|image|mimes:jpeg,png,jpg,gif,svg,bmp|max:2048'
-        ];
+        if ($buttonAction == "update") {
+            $rules = [
+                'name' => 'required|max:50|unique:article,name,' . $id,
+                'description' => 'required|max:500',
+                'imageName' => 'image|mimes:jpeg,png,jpg,gif,svg,bmp|max:2048'
+            ];
+        }
+        return $rules;
     }
 
     private $errors = [
@@ -42,35 +45,28 @@ class ArticlesController extends Controller
 
     function index()
     {
-       $articles = DB::table('article')->get();
-        return Datatables::of($articles)->addColumn('action', function($article){
-            return '<a href="#" class="btn btn-xs btn-primary edit" id="'.$article->id.'">
-<i class="glyphicon glyphicon-edit"></i> Edit</a><a href="#" class="btn btn-xs btn-danger delete" id="'.$article->id.'">
+        $articles = DB::table('article')->get();
+        return Datatables::of($articles)->addColumn('action', function ($article) {
+            return '<a href="#" class="btn btn-xs btn-primary edit" id="' . $article->id . '">
+<i class="glyphicon glyphicon-edit"></i> Edit</a><a href="#" class="btn btn-xs btn-danger delete" id="' . $article->id . '">
 <i class="glyphicon glyphicon-remove"></i> Delete</a>';
         })
             ->make(true);
     }
 
-    public function store(Request $request)
+    function store(Request $request)
     {
-        $t = $request->get('article_id');
-        $validator = Validator::make($request->all(), $this->rules($request->get('article_id')), $this->errors);
+        $validator = Validator::make($request->all(), $this->rules($request->get('article_id'), $request->get('button_action')), $this->errors);
         $success_output = '';
         $validatorErrors = [];
-        $validatorErrorsCount =0;
-        if ($validator->fails())
-        {
-            foreach ($this->rule() as $key => $value)
-            {
+        $validatorErrorsCount = 0;
+        if ($validator->fails()) {
+            foreach ($this->rules($request->get('article_id'), $request->get('button_action')) as $key => $value) {
                 $validatorErrors[$key] = $validator->errors()->first($key);
-
             }
-         $validatorErrorsCount = count($validatorErrors);
-        }
-        else
-        {
-            if($request->get('button_action') == "insert")
-            {
+            $validatorErrorsCount = count($validatorErrors);
+        } else {
+            if ($request->get('button_action') == "insert") {
                 if ($request->hasFile('imageName')) {
                     $image = $request->file('imageName');
                     $name = time() . '.' . $image->getClientOriginalExtension();
@@ -86,46 +82,62 @@ class ArticlesController extends Controller
                 }
             }
 
-            if($request->get('button_action') == 'update')
-            {
+            if ($request->get('button_action') == 'update') {
                 if ($request->hasFile('imageName')) {
+
+                    $oldImageName = DB::table('article')
+                        ->select('imageName')
+                        ->where('id', '=', $request->get('article_id'))
+                        ->value('imageName');
+
+                    unlink(public_path('/images/') . $oldImageName);
+
                     $image = $request->file('imageName');
                     $name = time() . '.' . $image->getClientOriginalExtension();
                     $destinationPath = public_path('/images');
                     $image->move($destinationPath, $name);
-
-
-
-                    $article['name'] = $request->get('name');
-                    $article['description'] = $request->get('description');
                     $article['imageName'] = $name;
-                    DB::table('article')->where('id',$request->get('article_id'))->update($article);
-
-                    $success_output = '<div class="alert alert-success">Data updated successfully.</div>';
                 }
+                $article['name'] = $request->get('name');
+                $article['description'] = $request->get('description');
+                DB::table('article')->where('id', $request->get('article_id'))->update($article);
+
+                $success_output = '<div class="alert alert-success">Data updated successfully.</div>';
             }
         }
         $output = array(
-            'successes'   =>  $success_output,
+            'successes' => $success_output,
             'errors' => $validatorErrors,
-            'errorsCount' => $validatorErrorsCount,
-            'test' => $t
+            'errorsCount' => $validatorErrorsCount
         );
         echo json_encode($output);
     }
 
-    function fetchdata(Request $request)
+    function edit(Request $request)
     {
-        $id = $request->input('id');
-        $article = DB::table('article')->find($id);
+        $article = DB::table('article')->find($request->get('id'));
 
         if (!is_null($article)) {
             $output = array(
                 'name' => $article->name,
                 'description' => $article->description,
-                'imageName' =>  $article->imageName
+                'imageName' => $article->imageName
             );
             echo json_encode($output);
+        }
+    }
+
+    function delete(Request $request)
+    {
+        $imageName = DB::table('article')
+            ->select('imageName')
+            ->where('id', '=', $request->get('id'))
+            ->value('imageName');
+
+        if (DB::table('article')->delete($request->get('id'))) {
+            unlink(public_path('/images/') . $imageName);
+            $successes = '<div class="alert alert-success">Data deleted successfully.</div>';
+            echo json_encode($successes);
         }
     }
 }
